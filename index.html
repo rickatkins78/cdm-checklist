@@ -855,13 +855,24 @@ function exportReport() {
       sec.items.map(item => {
         const s = state[item.id]||'';
         const notes = state[item.id+'_notes']||'';
+        const photos = state[item.id+'_photos']||[];
         const bg = s==='Y'?'#e8f5e9':s==='N'?'#ffebee':s==='NA'?'#f5f5f5':'#fff';
         const statusLabel = s==='Y'?'In Place':s==='N'?'Issue':s==='NA'?'N/A':'—';
+        const statusColor = s==='Y'?'#2e7d32':s==='N'?'#c62828':s==='NA'?'#555':'#999';
+        const photosHtml = photos.length > 0
+          ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">
+              ${photos.map((p,i) => `<div style="text-align:center">
+                <img src="${p}" style="width:80px;height:60px;object-fit:cover;border:1px solid #ddd;border-radius:3px;display:block;" />
+                <div style="font-size:8px;color:#999;margin-top:1px;">Photo ${i+1}</div>
+              </div>`).join('')}
+            </div>`
+          : '';
+        const notesHtml = notes ? `<div style="margin-bottom:${photos.length?'4px':'0'}">${notes}</div>` : '';
         return `<tr style="background:${bg}">
-          <td>${item.text}</td>
-          <td style="text-align:center;white-space:nowrap">${item.timing}</td>
-          <td style="text-align:center;font-weight:600">${statusLabel}</td>
-          <td>${notes}</td>
+          <td style="vertical-align:top">${item.text}</td>
+          <td style="text-align:center;white-space:nowrap;vertical-align:top">${item.timing}</td>
+          <td style="text-align:center;font-weight:700;color:${statusColor};vertical-align:top">${statusLabel}</td>
+          <td style="vertical-align:top">${notesHtml}${photosHtml}</td>
         </tr>`;
       })
     ).join('');
@@ -901,6 +912,7 @@ function exportReport() {
   table.checklist { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
   table.checklist th { background: #37474f; color: white; padding: 6px 8px; text-align: left; font-size: 10px; }
   table.checklist td { padding: 5px 8px; border: 1px solid #ddd; vertical-align: top; font-size: 10px; }
+  table.checklist td img { display: inline-block; }
   table.checklist tr:nth-child(even) td { background: rgba(0,0,0,0.02); }
   table.log { width: 100%; border-collapse: collapse; }
   table.log th { background: #37474f; color: white; padding: 5px 8px; font-size: 10px; text-align: left; }
@@ -954,11 +966,45 @@ function exportReport() {
   <tbody>${logRowsHtml() || '<tr><td colspan="6" style="text-align:center;color:#999">No actions recorded</td></tr>'}</tbody>
 </table>
 
+${photoEvidenceLog()}
 <script>window.onload=()=>window.print()<\/script>
 </body></html>`;
 
   const w=window.open('','_blank');
   if(w){w.document.write(html);w.document.close();}
+}
+
+function photoEvidenceLog() {
+  const allItems = allAllItems();
+  const itemsWithPhotos = allItems.filter(item => (state[item.id+'_photos']||[]).length > 0);
+  if(itemsWithPhotos.length === 0) return '';
+  const totalPhotos = itemsWithPhotos.reduce((sum,item) => sum + (state[item.id+'_photos']||[]).length, 0);
+  const cards = itemsWithPhotos.map(item => {
+    const photos = state[item.id+'_photos']||[];
+    const s = state[item.id]||'';
+    const statusLabel = s==='Y'?'In Place':s==='N'?'Issue':s==='NA'?'N/A':'—';
+    const statusColor = s==='Y'?'#2e7d32':s==='N'?'#c62828':s==='NA'?'#555':'#999';
+    const notes = state[item.id+'_notes']||'';
+    const photoImgs = photos.map((p,i) => `
+      <div style="text-align:center;display:inline-block;margin:4px;">
+        <img src="${p}" style="width:160px;height:120px;object-fit:cover;border:1px solid #ddd;border-radius:4px;display:block;" />
+        <div style="font-size:8px;color:#999;margin-top:3px;">Photo ${i+1}</div>
+      </div>`).join('');
+    return `
+      <div style="margin-bottom:14px;border:1px solid #ddd;border-radius:4px;overflow:hidden;page-break-inside:avoid;">
+        <div style="display:flex;justify-content:space-between;align-items:center;background:#f5f5f5;padding:7px 10px;border-bottom:1px solid #ddd;">
+          <div style="font-size:10px;font-weight:bold;color:#111;flex:1;padding-right:12px;">${item.text}</div>
+          <div style="font-size:10px;font-weight:bold;color:${statusColor};white-space:nowrap;">${statusLabel}</div>
+        </div>
+        ${notes ? `<div style="padding:5px 10px;font-size:9px;color:#555;font-style:italic;border-bottom:1px solid #eee;">${notes}</div>` : ''}
+        <div style="padding:8px 10px;background:#fff;">${photoImgs}</div>
+      </div>`;
+  }).join('');
+  return `
+    <h2 style="font-size:13px;font-weight:bold;background:#0369a1;color:white;padding:6px 10px;margin:18px 0 0;page-break-before:always;">
+      Photo Evidence Log &mdash; ${totalPhotos} photo${totalPhotos!==1?'s':''} across ${itemsWithPhotos.length} item${itemsWithPhotos.length!==1?'s':''}
+    </h2>
+    <div style="margin-top:8px;">${cards}</div>`;
 }
 
 function renderAll() {
